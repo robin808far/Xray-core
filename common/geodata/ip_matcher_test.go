@@ -97,6 +97,90 @@ func TestIPMatcher(t *testing.T) {
 	}
 }
 
+func TestIPMatcherFullCIDR4(t *testing.T) {
+	matcher := buildIPMatcher(
+		"0.0.0.0/0",
+	)
+
+	testCases := []struct {
+		Input  string
+		Output bool
+	}{
+		{
+			Input:  "192.168.1.1",
+			Output: true,
+		},
+		{
+			Input:  "0.0.0.0",
+			Output: true,
+		},
+		{
+			Input:  "255.255.255.255",
+			Output: true,
+		},
+		{
+			Input:  "2001:cdba::3257:9652",
+			Output: false,
+		},
+		{
+			Input:  "::0",
+			Output: false,
+		},
+		{
+			Input:  "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+			Output: false,
+		},
+	}
+
+	for _, test := range testCases {
+		if v := matcher.Match(xnet.ParseAddress(test.Input).IP()); v != test.Output {
+			t.Error("unexpected output: ", v, " for test case ", test)
+		}
+	}
+}
+
+func TestIPMatcherFullCIDR6(t *testing.T) {
+	matcher := buildIPMatcher(
+		"::0/0",
+	)
+
+	testCases := []struct {
+		Input  string
+		Output bool
+	}{
+		{
+			Input:  "192.168.1.1",
+			Output: false,
+		},
+		{
+			Input:  "0.0.0.0",
+			Output: false,
+		},
+		{
+			Input:  "255.255.255.255",
+			Output: false,
+		},
+		{
+			Input:  "2001:cdba::3257:9652",
+			Output: true,
+		},
+		{
+			Input:  "::0",
+			Output: true,
+		},
+		{
+			Input:  "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+			Output: true,
+		},
+	}
+
+	for _, test := range testCases {
+		if v := matcher.Match(xnet.ParseAddress(test.Input).IP()); v != test.Output {
+			t.Error("unexpected output: ", v, " for test case ", test)
+		}
+	}
+}
+
 func TestIPMatcherRegression(t *testing.T) {
 	matcher := buildIPMatcher(
 		"98.108.20.0/22",
@@ -231,7 +315,7 @@ func TestIPMatcherAnyMatchAndMatches(t *testing.T) {
 	}
 
 	if !matcher.AnyMatch([]net.IP{
-		net.IP{},
+		{},
 		ip("1.1.1.1"),
 		ip("8.8.8.8"),
 	}) {
@@ -261,7 +345,7 @@ func TestIPMatcherAnyMatchAndMatches(t *testing.T) {
 
 	if matcher.Matches([]net.IP{
 		ip("8.8.8.8"),
-		net.IP{},
+		{},
 	}) {
 		t.Fatal("expect Matches to be false when any IP is invalid")
 	}
@@ -278,7 +362,7 @@ func TestIPMatcherFilterIPs(t *testing.T) {
 	}
 
 	matched, unmatched := matcher.FilterIPs([]net.IP{
-		net.IP{},
+		{},
 		ip("8.8.8.8"),
 		ip("91.108.255.254"),
 		ip("1.1.1.1"),
@@ -316,13 +400,13 @@ func TestIPMatcher4CN(t *testing.T) {
 	}
 }
 
-func TestIPMatcher6US(t *testing.T) {
+func TestIPMatcher6RU(t *testing.T) {
 	t.Setenv("xray.location.asset", filepath.Join("..", "..", "resources"))
 
-	matcher := buildIPMatcher("geoip:us")
+	matcher := buildIPMatcher("geoip:ru")
 
-	if !matcher.Match(xnet.ParseAddress("2001:4860:4860::8888").IP()) {
-		t.Error("expect US geoip contain 2001:4860:4860::8888, but actually not")
+	if !matcher.Match(xnet.ParseAddress("2a02:6b8::feed:0ff").IP()) {
+		t.Error("expect RU geoip contain 2a02:6b8::feed:0ff, but actually not")
 	}
 }
 
@@ -339,11 +423,11 @@ func BenchmarkIPMatcher4CN(b *testing.B) {
 	}
 }
 
-func BenchmarkIPMatcher6US(b *testing.B) {
+func BenchmarkIPMatcher6RU(b *testing.B) {
 	b.Setenv("xray.location.asset", filepath.Join("..", "..", "resources"))
 
-	matcher := buildIPMatcher("geoip:us")
-	ip := xnet.ParseAddress("2001:4860:4860::8888").IP()
+	matcher := buildIPMatcher("geoip:ru")
+	ip := xnet.ParseAddress("2a02:6b8::feed:0ff").IP()
 
 	b.ResetTimer()
 

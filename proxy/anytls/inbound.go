@@ -66,14 +66,14 @@ func NewServer(ctx context.Context, config *ServerConfig) (*Inbound, error) {
 		}
 		memoryUser, err := user.ToMemoryUser()
 		if err != nil {
-			return nil, errors.New("failed to parse anytls user").Base(err).AtError()
+			return nil, errors.New("failed to parse anytls user").Base(err)
 		}
 		account, ok := memoryUser.Account.(*MemoryAccount)
 		if !ok || account.Password == "" {
 			// Hard failure: an empty password must never become a valid credential,
 			// and the only way to get here is a code-level defect, since the JSON
 			// layer already rejects a blank one.
-			return nil, errors.New("anytls user ", memoryUser.Email, " has no password").AtError()
+			return nil, errors.New("anytls user ", memoryUser.Email, " has no password")
 		}
 		// Degrade rather than refuse the config. Xray rejects the WHOLE config when
 		// any one inbound fails to build, so a single bad pair of accounts would take
@@ -111,7 +111,7 @@ func NewServer(ctx context.Context, config *ServerConfig) (*Inbound, error) {
 	}
 	service, err := singanytls.NewService(serviceConfig)
 	if err != nil {
-		return nil, errors.New("failed to create anytls service").Base(err).AtError()
+		return nil, errors.New("failed to create anytls service").Base(err)
 	}
 	inbound.service = service
 

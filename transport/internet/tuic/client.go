@@ -155,7 +155,7 @@ func (c *Client) dial(ctx context.Context) (*clientConnection, error) {
 		remote     stdnet.Addr
 	)
 	switch typed := raw.(type) {
-	case *internet.PacketConnWrapper:
+	case *net.PacketConnWrapper:
 		packetConn = typed.PacketConn
 		remote = typed.RemoteAddr()
 	case *net.UDPConn:
