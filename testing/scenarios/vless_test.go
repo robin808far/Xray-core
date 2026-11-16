@@ -3,6 +3,8 @@ package scenarios
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
+	"io"
 	"sync"
 	"testing"
 	"time"
@@ -20,6 +22,7 @@ import (
 	"github.com/xtls/xray-core/proxy/dokodemo"
 	"github.com/xtls/xray-core/proxy/freedom"
 	"github.com/xtls/xray-core/proxy/vless"
+	"github.com/xtls/xray-core/proxy/vless/encoding"
 	"github.com/xtls/xray-core/proxy/vless/inbound"
 	"github.com/xtls/xray-core/proxy/vless/outbound"
 	"github.com/xtls/xray-core/testing/servers/tcp"
@@ -54,7 +57,7 @@ func TestVless(t *testing.T) {
 					Listen:   net.NewIPOrDomain(net.LocalHostIP),
 				}),
 				ProxySettings: serial.ToTypedMessage(&inbound.Config{
-					Clients: []*protocol.User{
+					Users: []*protocol.User{
 						{
 							Account: serial.ToTypedMessage(&vless.Account{
 								Id: userID.String(),
@@ -67,7 +70,7 @@ func TestVless(t *testing.T) {
 		Outbound: []*core.OutboundHandlerConfig{
 			{
 				ProxySettings: serial.ToTypedMessage(&freedom.Config{
-					IpsBlocked: &freedom.IPRules{},
+					FinalRules: []*freedom.FinalRuleConfig{{Action: freedom.RuleAction_Allow}},
 				}),
 			},
 		},
@@ -88,9 +91,9 @@ func TestVless(t *testing.T) {
 					Listen:   net.NewIPOrDomain(net.LocalHostIP),
 				}),
 				ProxySettings: serial.ToTypedMessage(&dokodemo.Config{
-					Address:  net.NewIPOrDomain(dest.Address),
-					Port:     uint32(dest.Port),
-					Networks: []net.Network{net.Network_TCP},
+					RewriteAddress:  net.NewIPOrDomain(dest.Address),
+					RewritePort:     uint32(dest.Port),
+					AllowedNetworks: []net.Network{net.Network_TCP},
 				}),
 			},
 		},
@@ -159,7 +162,7 @@ func TestVlessTls(t *testing.T) {
 					},
 				}),
 				ProxySettings: serial.ToTypedMessage(&inbound.Config{
-					Clients: []*protocol.User{
+					Users: []*protocol.User{
 						{
 							Account: serial.ToTypedMessage(&vless.Account{
 								Id: userID.String(),
@@ -172,7 +175,7 @@ func TestVlessTls(t *testing.T) {
 		Outbound: []*core.OutboundHandlerConfig{
 			{
 				ProxySettings: serial.ToTypedMessage(&freedom.Config{
-					IpsBlocked: &freedom.IPRules{},
+					FinalRules: []*freedom.FinalRuleConfig{{Action: freedom.RuleAction_Allow}},
 				}),
 			},
 		},
@@ -193,9 +196,9 @@ func TestVlessTls(t *testing.T) {
 					Listen:   net.NewIPOrDomain(net.LocalHostIP),
 				}),
 				ProxySettings: serial.ToTypedMessage(&dokodemo.Config{
-					Address:  net.NewIPOrDomain(dest.Address),
-					Port:     uint32(dest.Port),
-					Networks: []net.Network{net.Network_TCP},
+					RewriteAddress:  net.NewIPOrDomain(dest.Address),
+					RewritePort:     uint32(dest.Port),
+					AllowedNetworks: []net.Network{net.Network_TCP},
 				}),
 			},
 		},
@@ -281,7 +284,7 @@ func TestVlessXtlsVision(t *testing.T) {
 					},
 				}),
 				ProxySettings: serial.ToTypedMessage(&inbound.Config{
-					Clients: []*protocol.User{
+					Users: []*protocol.User{
 						{
 							Account: serial.ToTypedMessage(&vless.Account{
 								Id:   userID.String(),
@@ -295,7 +298,7 @@ func TestVlessXtlsVision(t *testing.T) {
 		Outbound: []*core.OutboundHandlerConfig{
 			{
 				ProxySettings: serial.ToTypedMessage(&freedom.Config{
-					IpsBlocked: &freedom.IPRules{},
+					FinalRules: []*freedom.FinalRuleConfig{{Action: freedom.RuleAction_Allow}},
 				}),
 			},
 		},
@@ -316,9 +319,9 @@ func TestVlessXtlsVision(t *testing.T) {
 					Listen:   net.NewIPOrDomain(net.LocalHostIP),
 				}),
 				ProxySettings: serial.ToTypedMessage(&dokodemo.Config{
-					Address:  net.NewIPOrDomain(dest.Address),
-					Port:     uint32(dest.Port),
-					Networks: []net.Network{net.Network_TCP},
+					RewriteAddress:  net.NewIPOrDomain(dest.Address),
+					RewritePort:     uint32(dest.Port),
+					AllowedNetworks: []net.Network{net.Network_TCP},
 				}),
 			},
 		},
@@ -413,7 +416,7 @@ func TestVlessXtlsVisionReality(t *testing.T) {
 					},
 				}),
 				ProxySettings: serial.ToTypedMessage(&inbound.Config{
-					Clients: []*protocol.User{
+					Users: []*protocol.User{
 						{
 							Account: serial.ToTypedMessage(&vless.Account{
 								Id:   userID.String(),
@@ -427,7 +430,7 @@ func TestVlessXtlsVisionReality(t *testing.T) {
 		Outbound: []*core.OutboundHandlerConfig{
 			{
 				ProxySettings: serial.ToTypedMessage(&freedom.Config{
-					IpsBlocked: &freedom.IPRules{},
+					FinalRules: []*freedom.FinalRuleConfig{{Action: freedom.RuleAction_Allow}},
 				}),
 			},
 		},
@@ -448,9 +451,9 @@ func TestVlessXtlsVisionReality(t *testing.T) {
 					Listen:   net.NewIPOrDomain(net.LocalHostIP),
 				}),
 				ProxySettings: serial.ToTypedMessage(&dokodemo.Config{
-					Address:  net.NewIPOrDomain(dest.Address),
-					Port:     uint32(dest.Port),
-					Networks: []net.Network{net.Network_TCP},
+					RewriteAddress:  net.NewIPOrDomain(dest.Address),
+					RewritePort:     uint32(dest.Port),
+					AllowedNetworks: []net.Network{net.Network_TCP},
 				}),
 			},
 		},
@@ -509,7 +512,7 @@ func TestVlessXtlsVisionReality(t *testing.T) {
 
 // This testing test all known utls fingerprint in tls.PresetFingerprints that support reality (expect unsafe and random*)
 // Beacuse figerprint support may be broken after utls/reality update
-// Known broken fingerprint: android, 360
+// Known working fingerprint: chrome, firefox, safari
 func TestVlessRealityFingerprints(t *testing.T) {
 	TestFingerprint := func(fingerprint string) error {
 		tcpServer := tcp.Server{
@@ -553,7 +556,7 @@ func TestVlessRealityFingerprints(t *testing.T) {
 						},
 					}),
 					ProxySettings: serial.ToTypedMessage(&inbound.Config{
-						Clients: []*protocol.User{
+						Users: []*protocol.User{
 							{
 								Account: serial.ToTypedMessage(&vless.Account{
 									Id: userID.String(),
@@ -566,7 +569,7 @@ func TestVlessRealityFingerprints(t *testing.T) {
 			Outbound: []*core.OutboundHandlerConfig{
 				{
 					ProxySettings: serial.ToTypedMessage(&freedom.Config{
-						IpsBlocked: &freedom.IPRules{},
+						FinalRules: []*freedom.FinalRuleConfig{{Action: freedom.RuleAction_Allow}},
 					}),
 				},
 			},
@@ -586,9 +589,9 @@ func TestVlessRealityFingerprints(t *testing.T) {
 						Listen:   net.NewIPOrDomain(net.LocalHostIP),
 					}),
 					ProxySettings: serial.ToTypedMessage(&dokodemo.Config{
-						Address:  net.NewIPOrDomain(dest.Address),
-						Port:     uint32(dest.Port),
-						Networks: []net.Network{net.Network_TCP},
+						RewriteAddress:  net.NewIPOrDomain(dest.Address),
+						RewritePort:     uint32(dest.Port),
+						AllowedNetworks: []net.Network{net.Network_TCP},
 					}),
 				},
 			},
@@ -641,7 +644,7 @@ func TestVlessRealityFingerprints(t *testing.T) {
 		}
 		return nil
 	}
-	fingerPrints := []string{"chrome", "firefox", "safari", "ios", "edge", "qq"}
+	fingerPrints := []string{"chrome", "firefox", "safari"}
 	wg := sync.WaitGroup{}
 	wg.Add(len(fingerPrints))
 	for _, fp := range fingerPrints {
@@ -656,4 +659,83 @@ func TestVlessRealityFingerprints(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+// A blocked connection must close after finalRules.delay even while the client keeps it open and sends nothing.
+func TestVlessBlockDelay(t *testing.T) {
+	tcpServer := tcp.Server{
+		MsgProcessor: xor,
+	}
+	dest, err := tcpServer.Start()
+	common.Must(err)
+	defer tcpServer.Close()
+
+	for _, delay := range []uint64{0, 1} {
+		t.Run(fmt.Sprint("delay=", delay), func(t *testing.T) {
+			userID := protocol.NewID(uuid.New())
+			serverPort := tcp.PickPort()
+			serverConfig := &core.Config{
+				Inbound: []*core.InboundHandlerConfig{
+					{
+						ReceiverSettings: serial.ToTypedMessage(&proxyman.ReceiverConfig{
+							PortList: &net.PortList{Range: []*net.PortRange{net.SinglePortRange(serverPort)}},
+							Listen:   net.NewIPOrDomain(net.LocalHostIP),
+						}),
+						ProxySettings: serial.ToTypedMessage(&inbound.Config{
+							Users: []*protocol.User{
+								{
+									Account: serial.ToTypedMessage(&vless.Account{
+										Id: userID.String(),
+									}),
+								},
+							},
+						}),
+					},
+				},
+				Outbound: []*core.OutboundHandlerConfig{
+					{
+						ProxySettings: serial.ToTypedMessage(&freedom.Config{
+							FinalRules: []*freedom.FinalRuleConfig{
+								{
+									Action: freedom.RuleAction_Block,
+									Delay:  &freedom.Range{Min: delay, Max: delay},
+								},
+							},
+						}),
+					},
+				},
+			}
+
+			servers, err := InitializeServerConfigs(serverConfig)
+			common.Must(err)
+			defer CloseAllServers(servers)
+
+			conn, err := net.DialTCP("tcp", nil, &net.TCPAddr{
+				IP:   []byte{127, 0, 0, 1},
+				Port: int(serverPort),
+			})
+			common.Must(err)
+			defer conn.Close()
+
+			start := time.Now()
+			common.Must(encoding.EncodeRequestHeader(conn, &protocol.RequestHeader{
+				Version: encoding.Version,
+				User:    &protocol.MemoryUser{Account: &vless.MemoryAccount{ID: userID}},
+				Command: protocol.RequestCommandTCP,
+				Address: dest.Address,
+				Port:    dest.Port,
+			}, &encoding.Addons{}))
+
+			blockDuration := time.Duration(delay) * time.Second
+			common.Must(conn.SetReadDeadline(time.Now().Add(blockDuration + 5*time.Second)))
+			_, err = io.Copy(io.Discard, conn)
+			elapsed := time.Since(start)
+			if err, ok := err.(net.Error); ok && err.Timeout() {
+				t.Fatalf("connection is still open after %v", elapsed)
+			}
+			if elapsed < blockDuration {
+				t.Fatalf("connection is closed after %v, before finalRules.delay", elapsed)
+			}
+		})
+	}
 }

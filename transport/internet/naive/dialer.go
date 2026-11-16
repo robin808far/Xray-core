@@ -88,7 +88,13 @@ func dialH3(ctx context.Context, dest net.Destination, streamSettings *internet.
 	// but h3 rides QUIC, so the socket has to be a UDP one.
 	udpDest := dest
 	udpDest.Network = net.Network_UDP
-	conn, err := internet.DialSystem(ctx, udpDest, streamSettings.SocketSettings)
+	dial := func() (net.Conn, error) {
+		if streamSettings.FinalMask != nil {
+			return streamSettings.FinalMask.DialUDP(ctx, udpDest)
+		}
+		return internet.DialSystem(ctx, udpDest, streamSettings.SocketSettings)
+	}
+	conn, err := dial()
 	if err != nil {
 		return nil, err
 	}
@@ -96,9 +102,9 @@ func dialH3(ctx context.Context, dest net.Destination, streamSettings *internet.
 	var packetConn net.PacketConn
 	var udpAddr *net.UDPAddr
 	switch c := conn.(type) {
-	case *internet.PacketConnWrapper:
+	case *net.PacketConnWrapper:
 		packetConn = c.PacketConn
-		udpAddr, err = net.ResolveUDPAddr("udp", c.Dest.String())
+		udpAddr, err = net.ResolveUDPAddr("udp", c.RemoteAddr().String())
 	case *net.UDPConn:
 		packetConn = c
 		udpAddr, err = net.ResolveUDPAddr("udp", c.RemoteAddr().String())
@@ -111,19 +117,10 @@ func dialH3(ctx context.Context, dest net.Destination, streamSettings *internet.
 		return nil, err
 	}
 
-	if streamSettings.UdpmaskManager != nil {
-		packetConn, err = streamSettings.UdpmaskManager.WrapPacketConnClient(packetConn)
-		if err != nil {
-			conn.Close()
-			return nil, errors.New("mask err").Base(err)
-		}
-	}
-
 	quicParams := streamSettings.QuicParams
 	if quicParams == nil {
 		quicParams = &internet.QuicParams{
 			BbrProfile: string(bbr.ProfileStandard),
-			UdpHop:     &internet.UdpHop{},
 		}
 	}
 	quicConfig := &quic.Config{
@@ -145,7 +142,7 @@ func dialH3(ctx context.Context, dest net.Destination, streamSettings *internet.
 	}
 	switch quicParams.Congestion {
 	case "force-brutal":
-		congestion.UseBrutal(quicConn, quicParams.BrutalUp)
+		congestion.UseBrutal(quicConn, quicParams.BrutalUp, quicParams.BrutalDisableLossCompensation)
 	case "reno":
 	default:
 		congestion.UseBBR(quicConn, bbr.Profile(quicParams.BbrProfile))

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/xtls/xray-core/common/geodata"
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/features/routing"
+	"github.com/xtls/xray-core/features/routing/dns"
 )
 
 type Condition interface {
@@ -356,7 +358,13 @@ func (m *ProcessNameMatcher) Apply(ctx routing.Context) bool {
 
 	var dstIP string
 	var dstPort uint16 = 0
-	if len(ctx.GetTargetIPs()) > 0 {
+
+	// do not use resolved IP because Android process lookup needs original dst ip
+	resolvableContext, ok := ctx.(*dns.ResolvableContext)
+	if ok && len(resolvableContext.Context.GetTargetIPs()) > 0 {
+		dstIP = resolvableContext.Context.GetTargetIPs()[0].String()
+		dstPort = uint16(resolvableContext.Context.GetTargetPort())
+	} else if len(ctx.GetTargetIPs()) > 0 {
 		dstIP = ctx.GetTargetIPs()[0].String()
 		dstPort = uint16(ctx.GetTargetPort())
 	}
@@ -385,4 +393,23 @@ func (m *ProcessNameMatcher) Apply(ctx routing.Context) bool {
 		}
 	}
 	return false
+}
+
+// LocalOSMatcher matches the operating system Xray itself is running on. That never
+// changes while Xray is running, so the result is resolved when the rule is built.
+type LocalOSMatcher struct {
+	matched bool
+}
+
+func NewLocalOSMatcher(names []string) *LocalOSMatcher {
+	return &LocalOSMatcher{
+		matched: slices.ContainsFunc(names, func(name string) bool {
+			return strings.EqualFold(name, runtime.GOOS)
+		}),
+	}
+}
+
+// Apply implements Condition.
+func (m *LocalOSMatcher) Apply(_ routing.Context) bool {
+	return m.matched
 }

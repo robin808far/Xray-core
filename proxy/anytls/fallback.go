@@ -155,7 +155,7 @@ func (i *Inbound) fallback(ctx context.Context, connection net.Conn) error {
 	}
 	apfb := napfb[name]
 	if apfb == nil {
-		return errors.New(`failed to find the default "name" config`).AtWarning()
+		return errors.New(`failed to find the default "name" config`)
 	}
 
 	if apfb[alpn] == nil {
@@ -163,7 +163,7 @@ func (i *Inbound) fallback(ctx context.Context, connection net.Conn) error {
 	}
 	pfb := apfb[alpn]
 	if pfb == nil {
-		return errors.New(`failed to find the default "alpn" config`).AtWarning()
+		return errors.New(`failed to find the default "alpn" config`)
 	}
 
 	path := ""
@@ -197,7 +197,7 @@ func (i *Inbound) fallback(ctx context.Context, connection net.Conn) error {
 	}
 	fb := pfb[path]
 	if fb == nil {
-		return errors.New(`failed to find the default "path" config`).AtWarning()
+		return errors.New(`failed to find the default "path" config`)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -213,7 +213,7 @@ func (i *Inbound) fallback(ctx context.Context, connection net.Conn) error {
 		}
 		return nil
 	}); err != nil {
-		return errors.New("failed to dial to " + fb.Dest).Base(err).AtWarning()
+		return errors.New("failed to dial to " + fb.Dest).Base(err)
 	}
 	defer conn.Close()
 
@@ -228,7 +228,7 @@ func (i *Inbound) fallback(ctx context.Context, connection net.Conn) error {
 			}
 		}
 		if err := buf.Copy(reader, serverWriter, buf.UpdateActivity(timer)); err != nil {
-			return errors.New("failed to fallback request payload").Base(err).AtInfo()
+			return errors.New("failed to fallback request payload").Base(err)
 		}
 		return nil
 	}
@@ -238,7 +238,7 @@ func (i *Inbound) fallback(ctx context.Context, connection net.Conn) error {
 	getResponse := func() error {
 		defer timer.SetTimeout(sessionPolicy.Timeouts.UplinkOnly)
 		if err := buf.Copy(serverReader, writer, buf.UpdateActivity(timer)); err != nil {
-			return errors.New("failed to deliver response payload").Base(err).AtInfo()
+			return errors.New("failed to deliver response payload").Base(err)
 		}
 		return nil
 	}
@@ -246,7 +246,7 @@ func (i *Inbound) fallback(ctx context.Context, connection net.Conn) error {
 	if err := task.Run(ctx, task.OnSuccess(postRequest, task.Close(serverWriter)), task.OnSuccess(getResponse, task.Close(writer))); err != nil {
 		common.Must(common.Interrupt(serverReader))
 		common.Must(common.Interrupt(serverWriter))
-		return errors.New("fallback ends").Base(err).AtInfo()
+		return errors.New("fallback ends").Base(err)
 	}
 
 	return nil
@@ -303,7 +303,7 @@ func writeProxyProtocolHeader(serverWriter buf.Writer, connection net.Conn, xver
 		common.Must2(pro.Write([]byte{byte(p1 >> 8), byte(p1), byte(p2 >> 8), byte(p2)}))
 	}
 	if err := serverWriter.WriteMultiBuffer(buf.MultiBuffer{pro}); err != nil {
-		return errors.New("failed to set PROXY protocol v", xver).Base(err).AtWarning()
+		return errors.New("failed to set PROXY protocol v", xver).Base(err)
 	}
 	return nil
 }

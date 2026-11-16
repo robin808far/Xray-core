@@ -128,7 +128,7 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 			return nil
 		})
 		if err != nil {
-			return errors.New("naive: failed to find an available destination").AtWarning().Base(err)
+			return errors.New("naive: failed to find an available destination").Base(err)
 		}
 		closeFuncs = append(closeFuncs, func() { conn.Close() })
 		if request.StatusCode != http.StatusOK {
@@ -150,7 +150,7 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 			return nil
 		})
 		if err != nil {
-			return errors.New("naive: failed to find an available destination").AtWarning().Base(err)
+			return errors.New("naive: failed to find an available destination").Base(err)
 		}
 		closeFuncs = append(closeFuncs, func() { conn.Close() })
 

@@ -87,7 +87,7 @@ func (l *Listener) keepAcceptingQUIC(quicParams *internet.QuicParams) {
 
 		switch quicParams.Congestion {
 		case "force-brutal":
-			congestion.UseBrutal(conn, quicParams.BrutalUp)
+			congestion.UseBrutal(conn, quicParams.BrutalUp, quicParams.BrutalDisableLossCompensation)
 		case "reno":
 		default:
 			congestion.UseBBR(conn, bbr.Profile(quicParams.BbrProfile))
@@ -115,15 +115,19 @@ func Listen(ctx context.Context, address net.Address, port net.Port, streamSetti
 	tlsSettings := tls.ConfigFromStreamSettings(streamSettings)
 
 	if mode.tcp {
-		listener, err := internet.ListenSystem(ctx, &net.TCPAddr{
+		addr := &net.TCPAddr{
 			IP:   address.IP(),
 			Port: int(port),
-		}, streamSettings.SocketSettings)
+		}
+		var listener net.Listener
+		var err error
+		if streamSettings.FinalMask != nil {
+			listener, err = streamSettings.FinalMask.Listen(ctx, addr)
+		} else {
+			listener, err = internet.ListenSystem(ctx, addr, streamSettings.SocketSettings)
+		}
 		if err != nil {
 			return nil, errors.New("failed to listen TCP for naive on ", address, ":", port).Base(err)
-		}
-		if streamSettings.TcpmaskManager != nil {
-			listener, _ = streamSettings.TcpmaskManager.WrapListener(listener)
 		}
 		if tlsSettings != nil {
 			if tlsConfig := tcpTLSConfig(tlsSettings.GetTLSConfig()); tlsConfig != nil {
@@ -147,29 +151,27 @@ func Listen(ctx context.Context, address net.Address, port net.Port, streamSetti
 	}
 
 	if mode.udp {
-		raw, err := internet.ListenSystemPacket(context.Background(), &net.UDPAddr{
+		addr := &net.UDPAddr{
 			IP:   address.IP(),
 			Port: int(port),
-		}, streamSettings.SocketSettings)
+		}
+		var raw net.PacketConn
+		var err error
+		if streamSettings.FinalMask != nil {
+			raw, err = streamSettings.FinalMask.ListenPacket(ctx, addr)
+		} else {
+			raw, err = internet.ListenSystemPacket(ctx, addr, streamSettings.SocketSettings)
+		}
 		if err != nil {
 			l.Close()
 			return nil, errors.New("failed to listen UDP for naive on ", address, ":", port).Base(err)
 		}
 		l.pktConn = raw
-		if streamSettings.UdpmaskManager != nil {
-			masked, err := streamSettings.UdpmaskManager.WrapPacketConnServer(raw)
-			if err != nil {
-				l.Close()
-				return nil, errors.New("mask err").Base(err)
-			}
-			l.pktConn = masked
-		}
 
 		quicParams := streamSettings.QuicParams
 		if quicParams == nil {
 			quicParams = &internet.QuicParams{
 				BbrProfile: string(bbr.ProfileStandard),
-				UdpHop:     &internet.UdpHop{},
 			}
 		}
 		quicConfig := &quic.Config{
