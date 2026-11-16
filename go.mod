@@ -19,7 +19,7 @@ require (
 	github.com/pires/go-proxyproto v0.16.0
 	github.com/refraction-networking/utls v1.8.3-0.20261108164504-a13c59ffe98b
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/sagernet/sing v0.6.1
+	github.com/sagernet/sing v0.9.6
 	github.com/stretchr/testify v1.12.1
 	github.com/vishvananda/netlink v1.3.1
 	github.com/xtls/reality v0.0.0-20261108101329-4bb46b2afd8b
